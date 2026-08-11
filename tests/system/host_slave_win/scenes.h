@@ -35,6 +35,7 @@ int scenes_run_noise(void);
 int scenes_run_buffer(void);
 int scenes_run_stress(void);
 int scenes_run_transmit(void);
+int scenes_run_upstream(void);
 
 #ifdef __cplusplus
 }

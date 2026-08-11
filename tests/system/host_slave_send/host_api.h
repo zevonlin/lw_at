@@ -8,8 +8,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-31
- * @version 1.2.0
+ * @date 2026-08-11
+ * @version 1.3.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -18,6 +18,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                              version
+ * 2026-08-11 linzhiwei 新增 host_exit_stream_ok 消费退出回包 v1.3.0
  * 2026-07-31 linzhiwei 中文双端日志与控制台 UTF-8         v1.2.0
  * 2026-07-31 linzhiwei 精确等待/安静窗/子串计数           v1.1.0
  * 2026-07-31 linzhiwei 首次发布                            v1.0.0
@@ -142,6 +143,15 @@ uint32_t host_settle_ms(void);
  * @brief 合法 +++ 退出流式（前后静默）
  */
 void host_exit_stream_plus(void);
+
+/**
+ * @brief 合法 +++ 退出流式并消费退出回包 \r\nOK\r\n
+ *
+ * 流式退出成功后库默认自动回 \r\nOK\r\n，本函数退出后等待并断言该回包，
+ * 避免与后续命令应答粘连或误入安静窗断言。
+ * @param tag 断言标签
+ */
+void host_exit_stream_ok(const char *tag);
 
 /**
  * @brief CIPMODE=1 后无参 CIPSEND，校验提示符

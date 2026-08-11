@@ -7,8 +7,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-31
- * @version 1.1.0
+ * @date 2026-08-11
+ * @version 1.2.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -17,6 +17,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                    version
+ * 2026-08-11 linzhiwei 流式退出改 host_exit_stream_ok v1.2.0
  * 2026-07-31 linzhiwei 精确应答；enter 失败即止  v1.1.0
  * 2026-07-31 linzhiwei 首次发布                  v1.0.0
  */
@@ -68,8 +69,7 @@ int scenes_run_gate(void)
     if (host_enter_stream("G-02 enter stream") != 0) {
         failed += scene_delta(fail0);
     } else {
-        host_exit_stream_plus();
-        host_check(host_expect_quiet(80U) != 0, "G-02 quiet after +++");
+        host_exit_stream_ok("G-02 exit OK");
         host_send("AT\r\n");
         (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK, host_settle_ms());
         host_check(strcmp(rsp, HOST_RSP_OK) == 0, "G-02 exit AT");

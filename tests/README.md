@@ -22,7 +22,7 @@ make run
 
 1. **改了某一内部模块**：先跑 `unit/` 下对应目录（`lw_at_stream`、`lw_at_cmd_dict`、`lw_at_transmit` 或 `lw_at_core`）。
 2. **小改动后确认主路径仍可用**：跑 `system/host`。
-3. **变更涉及空闲超时、分片到达、多行粘连、不完整行保留等从机内部时序**：跑 `system/async_script`。
+3. **变更涉及空闲超时、分片到达、多行粘连、不完整行超时作废等从机内部时序**：跑 `system/async_script`。
 4. **变更涉及 CIPMODE / CIPSEND（定长或流式）、模式进出、粘连丢载荷、应用退出数据模式**：优先跑 `system/host_slave_send`；单线程定长/流式基线见 `unit/lw_at_core`（C09–C14）。
 5. **发版前，或变更涉及主机连发、应答收集、链路分片/丢字节、通用双端异步**：跑 `system/host_slave_win`。
 
@@ -54,7 +54,7 @@ make run
 | 变更类型 | 建议运行的目录 |
 | --- | --- |
 | 设置参数如何按逗号拆成多个槽、如何取整数/字符串、省略参数槽与引号转义 | `unit/lw_at_core`（其中 C12 为完整字符矩阵） |
-| 空闲超时多久才允许 `process`、尚未结束的不完整行在超时后是否仍保留 | `unit/lw_at_stream` 与 `system/async_script` |
+| 空闲超时多久才允许 `process`、尚未结束的不完整行在超时后的作废行为 | `unit/lw_at_stream` 与 `system/async_script` |
 | 流式 `+++` 识别与静默 | `unit/lw_at_transmit` 与 `unit/lw_at_core`；双端再跑 `host_slave_send` / `host_slave_win` 透传组 |
 | 定长 `CIPSEND=<len>`、进入提示（`\r\nOK\r\n>\r\n`）、收满 OK / 中止 ERROR | `unit/lw_at_core`（C14）与 `system/host_slave_send` |
 | 主机在未收到 OK 时继续发送后续命令 | 以 `system/host_slave_win` 为主；SEND 粘连丢载荷以 `host_slave_send` A-01/A-02 为准 |

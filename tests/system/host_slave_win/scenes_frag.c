@@ -7,8 +7,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-30
- * @version 1.0.0
+ * @date 2026-08-11
+ * @version 1.1.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -17,6 +17,7 @@
  *
  * Change Logs:
  * Date       Author    Notes    version
+ * 2026-08-11 linzhiwei I-01/I-03/K-02/F-01 半行空闲超时作废断言 v1.1.0
  * 2026-07-30 linzhiwei 首次发布 v1.0.0
  */
 #include "host_api.h"
@@ -50,18 +51,17 @@ int scenes_run_frag(void)
 
     (void)printf("\n==== I/K frag sticky framing ====\n");
 
-    /* I-01 中途停顿 > idle 再续 */
+    /* I-01 半行停顿 > idle 作废 */
     fail0 = 0U;
     host_check_stats(NULL, &fail0);
     host_scene_begin();
     host_send("AT+STR=\"he");
     Sleep(host_settle_ms());
     (void)host_collect_settle(rsp, sizeof(rsp));
-    host_check(host_count(rsp, HOST_RSP_OK) == 0U, "I-01 no OK mid");
+    host_check(host_count(rsp, HOST_RSP_ERR) >= 1U, "I-01 half ERROR");
     host_send("llo\"\r\n");
     (void)host_collect_settle(rsp, sizeof(rsp));
-    host_check(host_count(rsp, HOST_RSP_OK) == 1U, "I-01 resume OK");
-    host_check(strcmp(hs_cmd_str_get(), "hello") == 0, "I-01 str");
+    host_check(host_count(rsp, HOST_RSP_ERR) >= 1U, "I-01 tail ERROR");
     failed += scene_delta(fail0);
 
     /* I-02 逐字节 */
@@ -77,30 +77,30 @@ int scenes_run_frag(void)
     host_check(hs_cmd_int_get() == 5, "I-02 int 5");
     failed += scene_delta(fail0);
 
-    /* I-03 / F-07 CR LF split */
+    /* I-03 / F-07 CR LF split：CR 半行超时作废；孤立 LF 亦不成行 */
     fail0 = 0U;
     host_check_stats(NULL, &fail0);
     host_scene_begin();
     host_send("AT\r");
     Sleep(host_settle_ms());
     (void)host_collect_settle(rsp, sizeof(rsp));
-    host_check(strcmp(rsp, "") == 0, "I-03 only CR silent");
+    host_check(strcmp(rsp, HOST_RSP_ERR) == 0, "I-03 only CR ERROR");
     host_send("\n");
     (void)host_collect_settle(rsp, sizeof(rsp));
-    host_check(strcmp(rsp, HOST_RSP_OK) == 0, "I-03 LF completes");
+    host_check(strcmp(rsp, HOST_RSP_ERR) == 0, "I-03 lone LF ERROR");
     failed += scene_delta(fail0);
 
-    /* K-02 完整+半行 */
+    /* K-02 完整+半行：完整行 OK，半行超时作废 ERROR */
     fail0 = 0U;
     host_check_stats(NULL, &fail0);
     host_scene_begin();
     host_send("AT\r\nAT+INT=");
     (void)host_collect_settle(rsp, sizeof(rsp));
     host_check(host_count(rsp, HOST_RSP_OK) == 1U, "K-02 first OK");
+    host_check(host_count(rsp, HOST_RSP_ERR) >= 1U, "K-02 half ERROR");
     host_send("8\r\n");
     (void)host_collect_settle(rsp, sizeof(rsp));
-    host_check(host_count(rsp, HOST_RSP_OK) == 1U, "K-02 second OK");
-    host_check(hs_cmd_int_get() == 8, "K-02 int 8");
+    host_check(host_count(rsp, HOST_RSP_ERR) >= 1U, "K-02 tail ERROR");
     failed += scene_delta(fail0);
 
     /* K-03 半包放弃 */
@@ -117,17 +117,17 @@ int scenes_run_frag(void)
     host_check(strcmp(rsp, HOST_RSP_OK) == 0, "K-03 recover");
     failed += scene_delta(fail0);
 
-    /* F-01 仅 CR，再补 LF */
+    /* F-01 仅 CR，再补 LF：CR 半行超时作废；孤立 LF 不成行 */
     fail0 = 0U;
     host_check_stats(NULL, &fail0);
     host_scene_begin();
     host_send("AT\r");
     Sleep(host_settle_ms());
     (void)host_collect_settle(rsp, sizeof(rsp));
-    host_check(strcmp(rsp, "") == 0, "F-01 no OK");
+    host_check(strcmp(rsp, HOST_RSP_ERR) == 0, "F-01 only CR ERROR");
     host_send("\n");
     (void)host_collect_settle(rsp, sizeof(rsp));
-    host_check(strcmp(rsp, HOST_RSP_OK) == 0, "F-01 then OK");
+    host_check(strcmp(rsp, HOST_RSP_ERR) == 0, "F-01 lone LF ERROR");
     failed += scene_delta(fail0);
 
     /* F-02 仅 LF */

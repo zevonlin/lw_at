@@ -3,17 +3,14 @@
  * @brief LW-AT 接收流实现：环形缓存、满丢弃、按 \r\n 取行
  *
  * @details
- * 全部函数针对传入的 lw_at_stream_t 实例操作，无全局状态。环形缓存
- * 为单生产者单消费者模型：head 仅由 feed 路径（允许 ISR）修改，tail
- * 仅由 process 路径修改。缓存满时丢弃新数据并置 overflow 标志。取行仅
- * 以 \r\n 为帧边界。空闲判定已移入 lw_at_core 的定时器回调，本模块
- * 不再持有时间相关成员。
+ * 接收流实现：环形缓存、满丢弃、按 \r\n 取行。取行仅以 \r\n 为帧
+ * 边界；空闲判定由上层 lw_at_core 的定时器回调负责。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -22,6 +19,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                    version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #include <stdint.h>

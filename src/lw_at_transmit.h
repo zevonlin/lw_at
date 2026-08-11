@@ -3,18 +3,15 @@
  * @brief LW-AT 透传模块接口：sink 转发与 +++ 静默守卫检测
  *
  * @details
- * 透传的独立状态结构体 lw_at_transmit_t 与操作函数。本模块只依赖
- * lw_at_stream 模块（暂存的 '+' 还原、普通数据入缓存均经由传入的
- * stream 实例），不持有也不修改工作模式：退出透传的判定结果通过
- * 返回值/输出参数上报，由上层（core）统一切换模式并排空缓存。
- * 静默检测已改为事件驱动：guard 定时器到期后由上层置 silent 标志，
- * feed 仅根据 silent 判定前后静默是否满足；不再需要时间轮询。
+ * 透传独立状态结构体与操作函数；只依赖 lw_at_stream，不持有也不修改
+ * 工作模式，退出判定经返回值/输出参数上报，由上层 core 统一切换模式
+ * 并排空缓存。前后静默由上层 guard 定时器置 silent 标志判定。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -23,6 +20,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #ifndef LW_AT_TRANSMIT_H

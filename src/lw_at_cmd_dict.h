@@ -3,14 +3,13 @@
  * @brief LW-AT 命令字典模块接口：链表注册与按名查找
  *
  * @details
- * 模块内部持有哨兵头结点，用户多次注册的命令表节点挂在头结点之后。
- * 注册/查找/复位均在本模块内完成，调用方无需传递链表头。
+ * 命令字典：哨兵头结点链表注册与按名查找，调用方无需传递链表头。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -19,6 +18,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #ifndef LW_AT_CMD_DICT_H

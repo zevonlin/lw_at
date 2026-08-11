@@ -3,17 +3,14 @@
  * @brief LW-AT 透传实现：sink 转发与 +++ 静默守卫检测
  *
  * @details
- * 本文件恒编译（不设裁剪开关）。全部函数针对传入的
- * lw_at_transmit_t / lw_at_stream_t 实例操作，无全局状态，不感知工作
- * 模式：feed 路径的候选 '+' 暂存与还原通过 silent 标志判定前后静默；
- * 不进行时间轮询。silent 由上层（core）在 guard 定时器到期时置起，
- * 每次 feed 末尾清零并重载定时器。
+ * 透传实现：sink 转发与 +++ 静默守卫检测。不感知工作模式；silent
+ * 标志由上层 guard 定时器回调置起，feed 据此判定前后静默。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -22,6 +19,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #include "lw_at.h"

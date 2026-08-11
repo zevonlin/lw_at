@@ -70,5 +70,5 @@
 | `lw_at_err_t lw_at_data_enter(const lw_at_data_enter_cfg_t *cfg)` | 请求进入数据模式（handler 内登记意图） |
 | `lw_at_err_t lw_at_data_confirm(void)` | 确认进入数据模式：打印 >\r\n 后切入（同步/异步皆可） |
 | `lw_at_err_t lw_at_data_cancel(void)` | 取消待确认的数据模式进入请求 |
-| `lw_at_err_t lw_at_data_exit(void)` | 应用主动退出数据模式 |
+| `lw_at_err_t lw_at_data_exit(void)` | 应用主动退出数据模式；流式退出后自动回 \r\nOK\r\n，定长中止回 \r\nERROR\r\n |
 | `lw_at_err_t lw_at_transmit_enter(void)` | 请求进入流式透传（等价 STREAM + cfg.cbs.sink） |

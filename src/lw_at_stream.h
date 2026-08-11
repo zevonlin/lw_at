@@ -3,18 +3,15 @@
  * @brief LW-AT 接收流模块接口：环形缓存、满丢弃、取行
  *
  * @details
- * 接收流的独立状态结构体 lw_at_stream_t 与操作函数。全部函数以实例
- * 指针为第一参数，不依赖任何全局状态，可独立测试与复用。
- * 并发约定：head 仅由生产者（feed 路径，允许 ISR）修改，tail 仅由
- * 消费者（process 路径）修改，即单生产者单消费者模型。
- * 空闲定时器已改为 lw_at_timer_cb_t 事件驱动（见 lw_at_port.h），
- * 本模块不再持有时间相关成员；pending 由定时器回调置起。
+ * 接收流独立状态结构体与操作函数；以实例指针传参、无全局状态。
+ * 环形缓存为单生产者单消费者模型：head 仅由 feed 路径（允许 ISR）
+ * 修改，tail 仅由 process 路径修改；取行仅以 \r\n 为帧边界。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -23,6 +20,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #ifndef LW_AT_STREAM_H

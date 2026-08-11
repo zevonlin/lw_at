@@ -7,8 +7,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-30
- * @version 1.0.0
+ * @date 2026-08-11
+ * @version 1.1.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -16,7 +16,8 @@
  * @see https://github.com/zevonlin
  *
  * Change Logs:
- * Date       Author    Notes    version
+ * Date       Author    Notes                              version
+ * 2026-08-11 linzhiwei 新增 host_collect_impaired 上行损伤 v1.1.0
  * 2026-07-30 linzhiwei 首次发布 v1.0.0
  */
 #include "host_api.h"
@@ -148,6 +149,55 @@ uint32_t host_collect(char *out, uint32_t out_cap, uint32_t wait_ms)
 uint32_t host_collect_settle(char *out, uint32_t out_cap)
 {
     return host_collect(out, out_cap, host_settle_ms());
+}
+
+uint32_t host_collect_impaired(char *out, uint32_t out_cap, uint32_t wait_ms,
+                               uint32_t impair_every)
+{
+    uint32_t got = 0U;
+    uint32_t byte_index = 0U;
+    DWORD t0 = GetTickCount();
+
+    if ((out == NULL) || (out_cap == 0U)) {
+        return 0U;
+    }
+    out[0] = '\0';
+
+    while ((GetTickCount() - t0) < wait_ms) {
+        uint8_t chunk[128];
+        uint32_t n;
+        uint32_t space;
+        uint32_t i;
+        DWORD left = wait_ms - (GetTickCount() - t0);
+        DWORD slice = (left > 40U) ? 40U : left;
+
+        if (got + 1U >= out_cap) {
+            break;
+        }
+        if (slice == 0U) {
+            break;
+        }
+        space = out_cap - 1U - got;
+        if (space > sizeof(chunk)) {
+            space = (uint32_t)sizeof(chunk);
+        }
+        n = link_q_read_wait(up_q, chunk, space, slice);
+        if (n == 0U) {
+            continue;
+        }
+        /* 逐字节施加损伤：每 N 字节丢 1 个 + 插入 1 个噪声字节 */
+        for (i = 0U; (i < n) && (got + 1U < out_cap); i++) {
+            byte_index++;
+            if ((impair_every > 0U) && ((byte_index % impair_every) == 0U)) {
+                /* 丢弃本字节，替换为噪声字节 */
+                out[got++] = (char)0x00;
+            } else {
+                out[got++] = (char)chunk[i];
+            }
+        }
+        out[got] = '\0';
+    }
+    return got;
 }
 
 uint32_t host_count(const char *hay, const char *needle)

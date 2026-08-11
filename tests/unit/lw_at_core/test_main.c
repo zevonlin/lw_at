@@ -11,8 +11,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-01
- * @version 1.5.0
+ * @date 2026-08-11
+ * @version 1.9.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -21,6 +21,10 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 新增 C18 数据模式乱码+伪 +++ 混合刷屏        v1.9.0
+ * 2026-08-11 linzhiwei 新增 C16 tx_buf 溢出 / C17 乱码刷屏自恢复    v1.8.0
+ * 2026-08-11 linzhiwei 新增 C15 +++ 跨段静默回归用例                v1.7.0
+ * 2026-08-11 linzhiwei 流式退出断言改为期望自动回 OK                 v1.6.0
  * 2026-08-01 linzhiwei 移除 LW_AT_CFG_TRANSMIT 条件编译             v1.5.0
  * 2026-08-01 linzhiwei 事件驱动适配：虚拟定时器；退出由 process 完成 v1.4.0
  * 2026-07-31 linzhiwei 增加定长数据窗口 C14                   v1.3.0
@@ -521,13 +525,13 @@ static void test_case_transmit_basic(void)
     TEST_CHECK(strcmp(sink_buf, "helloAT\r\n") == 0);
 
     test_port_out_clear();
-    test_info("静默 + +++ + 静默，经定时器回调 + process 退出，默认不回 OK");
+    test_info("静默 + +++ + 静默，经定时器回调 + process 退出，默认自动回 OK");
     test_port_tick_advance(TEST_GUARD_MS);
     (void)test_feed("+++");
     test_port_tick_advance(TEST_GUARD_MS);
     lw_at_process();
     (void)printf("<< \"%s\"\n", test_esc(test_port_out_get()));
-    TEST_CHECK(test_port_out_get()[0] == '\0');
+    TEST_CHECK(strcmp(test_port_out_get(), TEST_RSP_OK) == 0);
     TEST_CHECK(strcmp(sink_buf, "helloAT\r\n") == 0);
     TEST_RESP("AT\r\n", TEST_RSP_OK);
 
@@ -606,8 +610,9 @@ static void test_case_transmit_guard(void)
     sink_len = 0U;
     sink_buf[0] = '\0';
     test_port_out_clear();
-    /* 先 process 完成退出排空，再发命令走命令模式 */
+    /* 先 process 完成退出排空（回 OK），再发命令走命令模式 */
     lw_at_process();
+    test_port_out_clear();
     (void)test_feed("AT\r\n");
     test_idle_run();
     (void)printf("sink \"%s\"\n", test_esc(sink_buf));
@@ -658,8 +663,9 @@ static void test_case_transmit_exit_harden(void)
     lw_at_process();
     (void)printf("sink \"%s\"（process leave）\n", test_esc(sink_buf));
     TEST_CHECK(strcmp(sink_buf, "BUF") == 0);
-    TEST_CHECK(test_port_out_get()[0] == '\0');
+    TEST_CHECK(strcmp(test_port_out_get(), TEST_RSP_OK) == 0);
     /* 退出后发命令走命令模式 */
+    test_port_out_clear();
     (void)test_feed("AT\r\n");
     test_idle_run();
     (void)printf("out \"%s\"\n", test_esc(test_port_out_get()));
@@ -685,8 +691,257 @@ static void test_case_transmit_exit_harden(void)
     (void)printf("sink \"%s\"（应为空）out \"%s\"\n", test_esc(sink_buf),
                  test_esc(test_port_out_get()));
     TEST_CHECK(strcmp(sink_buf, "") == 0);
-    TEST_CHECK(test_port_out_get()[0] == '\0');
+    TEST_CHECK(strcmp(test_port_out_get(), TEST_RSP_OK) == 0);
     /* 退出后命令模式恢复 */
+    TEST_RESP("AT\r\n", TEST_RSP_OK);
+}
+
+/**
+ * @brief 用例：+++ 跨段静默——静默超时作废暂存 '+'，guard 内累积仍有效
+ *
+ * BUG-001 回归：`+`→超时→`++` 或 `++`→超时→`+` 不得拼成 `+++` 误退出；
+ * 反向锁定 guard 内（未超时）跨段累积仍可正常退出，防止修复过头。
+ */
+static void test_case_transmit_cross_segment(void)
+{
+    test_banner("C15 +++ 跨段静默（BUG-001 回归）");
+
+    /* P1：+ → 静默超时 → ++ → 静默超时 → 不得退出 */
+    test_setup(TEST_RX_BUF_SIZE, TEST_LINE_BUF_SIZE, 1U);
+    test_enter_stream();
+    test_port_out_clear();
+    /* 前静默：进入后等待 guard 到期置 silent */
+    test_port_tick_advance(TEST_GUARD_MS);
+    (void)test_feed("+");
+    /* 静默超时：暂存 '+' 应作废（BUG-001 修复），silent 重新置位 */
+    test_port_tick_advance(TEST_GUARD_MS);
+    (void)test_feed("++");
+    test_port_tick_advance(TEST_GUARD_MS);
+    sink_len = 0U;
+    sink_buf[0] = '\0';
+    test_port_out_clear();
+    lw_at_process();
+    (void)printf("sink \"%s\"（暂存 '+' 超时作废，不应退出）out \"%s\"\n",
+                 test_esc(sink_buf), test_esc(test_port_out_get()));
+    TEST_CHECK(strcmp(test_port_out_get(), "") == 0);
+    TEST_CHECK(lw_at_mode_get() == 1U); /* LW_AT_MODE_DATA */
+    /* 仍在数据模式：合法 +++ 仍应能退出，证明未卡死 */
+    test_port_out_clear();
+    (void)test_feed("+++");
+    test_port_tick_advance(TEST_GUARD_MS);
+    lw_at_process();
+    TEST_CHECK(strcmp(test_port_out_get(), TEST_RSP_OK) == 0);
+    TEST_RESP("AT\r\n", TEST_RSP_OK);
+
+    /* P2：++ → 静默超时 → + → 静默超时 → 不得退出 */
+    test_setup(TEST_RX_BUF_SIZE, TEST_LINE_BUF_SIZE, 1U);
+    test_enter_stream();
+    test_port_out_clear();
+    test_port_tick_advance(TEST_GUARD_MS);
+    (void)test_feed("++");
+    test_port_tick_advance(TEST_GUARD_MS);
+    (void)test_feed("+");
+    test_port_tick_advance(TEST_GUARD_MS);
+    sink_len = 0U;
+    sink_buf[0] = '\0';
+    test_port_out_clear();
+    lw_at_process();
+    (void)printf("sink \"%s\"（P2 对称：不应退出）out \"%s\"\n",
+                 test_esc(sink_buf), test_esc(test_port_out_get()));
+    TEST_CHECK(strcmp(test_port_out_get(), "") == 0);
+    TEST_CHECK(lw_at_mode_get() == 1U); /* LW_AT_MODE_DATA */
+    test_port_out_clear();
+    (void)test_feed("+++");
+    test_port_tick_advance(TEST_GUARD_MS);
+    lw_at_process();
+    TEST_CHECK(strcmp(test_port_out_get(), TEST_RSP_OK) == 0);
+    TEST_RESP("AT\r\n", TEST_RSP_OK);
+
+    /* P3：+ → guard 内（未超时）→ ++ → 静默 → 应正常退出 */
+    test_setup(TEST_RX_BUF_SIZE, TEST_LINE_BUF_SIZE, 1U);
+    test_enter_stream();
+    test_port_out_clear();
+    test_port_tick_advance(TEST_GUARD_MS);
+    (void)test_feed("+");
+    /* 未到 guard：暂存保留，累积不被作废 */
+    test_port_tick_advance(TEST_GUARD_MS / 2U);
+    (void)test_feed("++");
+    /* 后静默：guard 到期凑齐 +++，登记退出 */
+    test_port_tick_advance(TEST_GUARD_MS);
+    sink_len = 0U;
+    sink_buf[0] = '\0';
+    test_port_out_clear();
+    lw_at_process();
+    (void)printf("sink \"%s\"（guard 内累积应正常退出）out \"%s\"\n",
+                 test_esc(sink_buf), test_esc(test_port_out_get()));
+    TEST_CHECK(strcmp(test_port_out_get(), TEST_RSP_OK) == 0);
+    TEST_CHECK(lw_at_mode_get() == 0U); /* LW_AT_MODE_COMMAND */
+    TEST_RESP("AT\r\n", TEST_RSP_OK);
+}
+
+/**
+ * @brief 用例：发送格式化区（tx_buf）溢出防护
+ *
+ * lw_at_send_line 在格式化结果超出 tx_buf 容量时应返回错误且不越界，
+ * 库仍能继续正常工作。验证 v0.9.1 的有界格式化不被长参数破坏。
+ */
+static void test_case_tx_overflow(void)
+{
+    /* 故意超长的中间信息正文，远超测试 tx_buf 容量 */
+    static const char long_str[] =
+        "123456789012345678901234567890123456789012345678901234567890"
+        "123456789012345678901234567890123456789012345678901234567890";
+
+    test_banner("C16 发送格式化区溢出（tx_buf）");
+
+    /* 用最小 tx_buf（8 字节）重建实例，放大溢出触发面 */
+    test_setup(TEST_RX_BUF_SIZE, TEST_LINE_BUF_SIZE, 0U);
+    test_cfg.tx_buf_size = 8U;
+    lw_at_deinit();
+    TEST_CHECK(lw_at_init(&test_cfg) == LW_AT_ERR_OK);
+    TEST_CHECK(test_cmd_register() == LW_AT_ERR_OK);
+
+    test_port_out_clear();
+    test_info("超长中间信息：send_line 应失败且不越界");
+    {
+        int32_t rc = lw_at_send_line("%s", long_str);
+
+        (void)printf("<< send_line rc=%ld（期望负值）\n", (long)rc);
+        TEST_CHECK(rc < 0);
+        /* 失败时不应有任何字节上行 */
+        TEST_CHECK(test_port_out_get()[0] == '\0');
+    }
+
+    test_info("失败后短命令仍可正常格式化与回包");
+    /* 设置一个会让查询中间信息超长的值 */
+    TEST_RESP("AT+ECHO=12345\r\n", TEST_RSP_OK);
+    /* "+ECHO:12345" 超出 8 字节 tx_buf：query 应整体失败回 ERROR */
+    TEST_RESP("AT+ECHO?\r\n", TEST_RSP_ERROR);
+    TEST_RESP("AT\r\n", TEST_RSP_OK);
+
+    test_info("lw_at_write_raw 超长数据（短写循环）不崩溃且长度正确");
+    test_port_out_clear();
+    {
+        int32_t n = lw_at_write_raw((const uint8_t *)long_str,
+                                    (uint32_t)sizeof(long_str) - 1U);
+
+        TEST_CHECK(n == (int32_t)(sizeof(long_str) - 1U));
+    }
+    TEST_RESP("AT\r\n", TEST_RSP_OK);
+}
+
+/**
+ * @brief 用例：大规模确定性乱码灌满后自恢复
+ *
+ * 模拟工业环境 EMI 干扰：数百字节全范围乱码（含 \r\n、半行、伪 +++、
+ * 超长"命令"、连续填充）分段灌入，各层防御应逐段消化；乱码过后
+ * 标准命令必须恢复，不被任何残留卡死。
+ */
+static void test_case_noise_recovery(void)
+{
+    /* LCG 状态：确定性伪随机序列 */
+    uint32_t seed = 0x12345678U;
+    uint32_t i;
+
+    test_banner("C17 乱码刷屏自恢复");
+
+    test_setup(TEST_RX_BUF_SIZE, TEST_LINE_BUF_SIZE, 0U);
+    test_port_out_clear();
+
+    test_info("分段灌入 300 字节随机乱码（含破坏性形态）");
+    for (i = 0U; i < 300U; i++) {
+        uint8_t b;
+
+        /* 确定性 LCG：x_{n+1} = (a*x_n + c) mod 2^32 */
+        seed = (1664525U * seed) + 1013904223U;
+        b = (uint8_t)(seed >> 24U);
+        /* 每约 40 字节强制插入一个 \r\n，制造可解析的乱码行 */
+        if ((i % 40U) == 39U) {
+            (void)test_feed("\r\n");
+        } else if (b == (uint8_t)'\r' || b == (uint8_t)'\n') {
+            /* 屏蔽随机 \r\n，避免无意中形成合法帧边界的测试噪声 */
+            b = (uint8_t)'X';
+        }
+        (void)test_feed((const char *)&b);
+        if ((i % 20U) == 19U) {
+            /* 每 20 字节让定时器到期，触发 process 消化积压 */
+            test_port_tick_advance(TEST_IDLE_MS);
+            lw_at_process();
+        }
+    }
+    /* 收尾：等待最后一次空闲，确保全部积压被消化 */
+    test_port_tick_advance(TEST_IDLE_MS);
+    lw_at_process();
+    test_port_out_clear();
+
+    test_info("乱码过后标准 AT 必须恢复");
+    TEST_RESP("AT\r\n", TEST_RSP_OK);
+    TEST_RESP("AT+ECHO=7\r\n", TEST_RSP_OK);
+    TEST_CHECK(test_cmd_echo_get() == 7);
+}
+
+/**
+ * @brief 用例：数据模式乱码 + 伪 +++ 混合刷屏不误退出
+ *
+ * 工业现场 EMI 干扰下，流式透传通道可能被大量乱码灌入，其中碰巧出现
+ * 的 `+++` 序列不得因前静默不满足或跨段累积而误触发退出。乱码停止后，
+ * 合法 `+++`（前静默 + 连续 + 后静默）仍应能正常退出。
+ */
+static void test_case_stream_noise_plus(void)
+{
+    /* LCG 状态：确定性伪随机序列 */
+    uint32_t seed = 0xDEADBEEFU;
+    uint32_t i;
+
+    test_banner("C18 数据模式乱码 + 伪 +++ 混合刷屏");
+
+    test_setup(TEST_RX_BUF_SIZE, TEST_LINE_BUF_SIZE, 1U);
+    test_enter_stream();
+    test_port_out_clear();
+    sink_len = 0U;
+    sink_buf[0] = '\0';
+
+    test_info("灌入 120 字节乱码，每 12 字节插入一个 +++（前静默不满足）");
+    for (i = 0U; i < 120U; i++) {
+        uint8_t b;
+
+        /* 确定性 LCG */
+        seed = (1664525U * seed) + 1013904223U;
+        b = (uint8_t)(seed >> 24U);
+        if ((i % 12U) == 11U) {
+            /* 插入伪 +++：紧贴前序数据到达，前静默不满足，应按普通数据转发 */
+            (void)test_feed("+++");
+            test_port_tick_advance(TEST_SHORT_MS);
+            continue;
+        }
+        if (b == (uint8_t)'\r' || b == (uint8_t)'\n') {
+            b = (uint8_t)'Y';
+        }
+        (void)test_feed((const char *)&b);
+        test_port_tick_advance(TEST_SHORT_MS);
+    }
+    /* 消化积压：乱码应全部作为普通数据进 sink，不触发退出 */
+    lw_at_process();
+    (void)printf("sink \"%s\"（乱码长度 %u）\n", test_esc(sink_buf),
+                 (unsigned)sink_len);
+    TEST_CHECK(lw_at_mode_get() == 1U); /* LW_AT_MODE_DATA */
+    TEST_CHECK(strcmp(test_port_out_get(), "") == 0);
+    /* 数据总量 = 120 字节乱码 + 10 组伪 +++（12 字节第 11 位插入），
+     * 但随机乱码中含有的 '+' 可能被 silent 满足时的段首暂存逻辑挂起，
+     * 故用下限断言：至少 120 字节主体已进入 sink */
+    TEST_CHECK(sink_len >= 120U);
+    TEST_CHECK(sink_len <= 120U + 10U * 3U);
+
+    test_info("乱码停止，前静默满足后合法 +++ 应正常退出");
+    test_port_tick_advance(TEST_GUARD_MS);
+    sink_len = 0U;
+    sink_buf[0] = '\0';
+    test_port_out_clear();
+    (void)test_feed("+++");
+    test_port_tick_advance(TEST_GUARD_MS);
+    lw_at_process();
+    TEST_CHECK(lw_at_mode_get() == 0U); /* LW_AT_MODE_COMMAND */
+    TEST_CHECK(strcmp(test_port_out_get(), TEST_RSP_OK) == 0);
     TEST_RESP("AT\r\n", TEST_RSP_OK);
 }
 
@@ -992,6 +1247,10 @@ int main(void)
     test_case_transmit_basic();
     test_case_transmit_guard();
     test_case_transmit_exit_harden();
+    test_case_transmit_cross_segment();
+    test_case_tx_overflow();
+    test_case_noise_recovery();
+    test_case_stream_noise_plus();
     test_case_data_fixed();
 
     (void)printf("\n==== 汇总 ====\n");

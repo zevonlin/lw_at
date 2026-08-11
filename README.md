@@ -29,7 +29,7 @@ lw-at/
 │   ├── png/                                # 文档图片
 │   ├── porting_guide.md                    # 移植指南
 │   ├── core_api.md                         # API 参考文档
-│   └── lw_at_readme.md                     # LW-AT 需求文档（基本需求说明）
+│   └── bugs/                               # Bug 记录（追踪表 + 独立详情档）
 │
 ├── src/                                    # 框架核心源码目录
 │   ├── lw_at.h                             # 对外 API（应用层仅需包含此文件）
@@ -58,11 +58,13 @@ lw-at/
 该框架为通用框架,允许移植在任何C语言开发环境中。
 
 ## 建议与注意事项：
-- 单实例、非线程安全：所有 lw_at_* API 须在串行上下文中调用；lw_at_feed 允许 ISR。
-- 不使用动态内存：接收缓存、行缓存、发送缓存均由调用方静态提供并传入 lw_at_config_t。
+- 单实例、非线程安全：所有 lw_at_* API 须在串行上下文中调用；`lw_at_feed` 允许 ISR。
+- 不使用动态内存：接收缓存、行缓存、发送缓存均由调用方静态提供并传入 `lw_at_config_t`。
 - 空闲与静默依赖板级单次软件定时器（timer_arm/timer_stop），须在板级实现并触发到期回调。
 - 数据模式进入采用两阶段确认，主机须等收到 `>` 提示符后再发送数据。
-- 命令帧边界仅以 \r\n 为准；空闲超时不作为帧结束条件。
+- 命令帧以 `\r\n` 结束；空闲超时后未闭合的残留命令作废（空闲超时亦作为帧结束裁断）。
+- 流式透传 `+++` 退出后默认自动回 `\r\nOK\r\n`，通知主机已回命令模式。
+- `+++` 前后静默时长默认取自配置 `guard_ms`，可用 `lw_at_guard_get`/`guard_set` 运行期查询与调整。
 - 内核不内置业务命令名（如 CIPMODE/CIPSEND），由产品侧命令表实现。
 
 ## 相关信息：
@@ -70,8 +72,8 @@ lw-at/
 @module name  :lw_at
 @author       :linzhiwei(zevonlin)
 @email        :zevonlin@gmail.com
-@date         :2026-08-01
+@date         :2026-08-11
 @note         :
 @see          :https://github.com/zevonlin
-@main Version :v0.9.0
+@main Version :v0.9.1
 ```

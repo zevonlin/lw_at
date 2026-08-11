@@ -3,16 +3,15 @@
  * @brief LW-AT Windows 例程适配层接口（非库核心）
  *
  * @details
- * 面向 MCU 风格主循环演示：write 打到控制台；timer_arm/timer_stop
- * 使用 Windows 线程池定时器（CreateTimerQueueTimer）实现单次软件
- * 定时器，到期后由线程池回调触发，无需主循环轮询。
+ * 面向 MCU 风格主循环演示的适配层：write 打到控制台；定时器用
+ * Windows 线程池（CreateTimerQueueTimer）实现单次软件定时器。
  * 测试用虚拟时钟与应答捕获见 tests/fixtures/test_port。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -21,6 +20,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #ifndef LW_AT_PORT_WIN_H

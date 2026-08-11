@@ -21,6 +21,7 @@ SRCS := ../../../src/lw_at_stream.c \
         scenes_buffer.c \
         scenes_stress.c \
         scenes_transmit.c \
+        scenes_upstream.c \
         test_main.c
 
 TARGET := test_host_slave_win

@@ -10,8 +10,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-31
- * @version 1.1.0
+ * @date 2026-08-11
+ * @version 1.2.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -20,6 +20,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                              version
+ * 2026-08-11 linzhiwei 流式退出改 host_exit_stream_ok       v1.2.0
  * 2026-07-31 linzhiwei 加严断言；补 R/B-CMD；对齐溢出契约 v1.1.0
  * 2026-07-31 linzhiwei 首次发布                            v1.0.0
  */
@@ -71,7 +72,7 @@ int scenes_run_edge(void)
     host_send("hello");
     Sleep(80);
     host_check(strcmp(slave_rt_sink_get(), "hello") == 0, "A-01 resend ok");
-    host_exit_stream_plus();
+    host_exit_stream_ok("A-01 exit OK");
     host_send("AT\r\n");
     (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK, host_settle_ms());
     host_check(strcmp(rsp, HOST_RSP_OK) == 0, "A-01 recover");
@@ -98,7 +99,7 @@ int scenes_run_edge(void)
     host_send("AT+CIPMODE=1\r\nAT+CIPSEND\r\n");
     (void)host_wait_exact(rsp, sizeof(rsp), A03_EXPECT, host_settle_ms() + 80U);
     host_check(strcmp(rsp, A03_EXPECT) == 0, "A-03 exact OK+PROMPT");
-    host_exit_stream_plus();
+    host_exit_stream_ok("A-03 exit OK");
     host_send("AT\r\n");
     (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK, host_settle_ms());
     host_check(strcmp(rsp, HOST_RSP_OK) == 0, "A-03 recover");
@@ -113,7 +114,7 @@ int scenes_run_edge(void)
         host_send("NOW");
         Sleep(60);
         host_check(strcmp(slave_rt_sink_get(), "NOW") == 0, "A-04 immediate data");
-        host_exit_stream_plus();
+        host_exit_stream_ok("A-04 exit OK");
         failed += scene_delta(fail0);
     }
 
@@ -132,7 +133,7 @@ int scenes_run_edge(void)
             host_send("xy");
             Sleep(60);
             host_check(strcmp(slave_rt_sink_get(), "xy") == 0, "X-01 stream data");
-            host_exit_stream_plus();
+            host_exit_stream_ok("X-01 exit OK");
             if (host_enter_fixed(2U, "X-01 fixed2") != 0) {
                 failed += scene_delta(fail0);
             } else {
@@ -151,7 +152,7 @@ int scenes_run_edge(void)
     if (host_enter_stream("X-02 enter") != 0) {
         failed += scene_delta(fail0);
     } else {
-        host_exit_stream_plus();
+        host_exit_stream_ok("X-02 exit OK");
         host_send("AT+CIPMODE=0\r\n");
         (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK, host_settle_ms());
         host_check(strcmp(rsp, HOST_RSP_OK) == 0, "X-02 mode0");
@@ -171,7 +172,7 @@ int scenes_run_edge(void)
         Sleep(60);
         host_check(strcmp(slave_rt_sink_get(), "AT+CIPSEND\r\n") == 0,
                    "X-03 as data");
-        host_exit_stream_plus();
+        host_exit_stream_ok("X-03 exit OK");
         host_send("AT\r\n");
         (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK, host_settle_ms());
         host_check(strcmp(rsp, HOST_RSP_OK) == 0, "X-03 recover");
@@ -207,7 +208,9 @@ int scenes_run_edge(void)
         host_send("zz");
         Sleep(40);
         slave_rt_request_data_exit();
-        host_check(host_expect_quiet(100U) != 0, "I-02 quiet after app exit");
+        (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK,
+                              host_settle_ms() + 100U);
+        host_check(strcmp(rsp, HOST_RSP_OK) == 0, "I-02 exit OK");
         host_check(strcmp(slave_rt_sink_get(), "zz") == 0, "I-02 sink kept");
         host_send("AT\r\n");
         (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK, host_settle_ms());
@@ -267,7 +270,7 @@ int scenes_run_edge(void)
         host_check(slave_rt_sink_len() < (sent * 2U), "B-01 dropped some");
         host_check(slave_rt_sink_len() > 0U, "B-01 got some");
         host_check(host_expect_quiet(60U) != 0, "B-01 no ERROR on stream ovf");
-        host_exit_stream_plus();
+        host_exit_stream_ok("B-01 exit OK");
         host_send("AT\r\n");
         (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK,
                               host_settle_ms() + 100U);
@@ -325,7 +328,7 @@ int scenes_run_edge(void)
     } else {
         host_send("a");
         Sleep(30);
-        host_exit_stream_plus();
+        host_exit_stream_ok("R-01 exit OK");
         slave_rt_sink_clear();
         if (host_enter_stream("R-01 reenter") != 0) {
             failed += scene_delta(fail0);
@@ -333,7 +336,7 @@ int scenes_run_edge(void)
             host_send("b");
             Sleep(60);
             host_check(strcmp(slave_rt_sink_get(), "b") == 0, "R-01 sink only b");
-            host_exit_stream_plus();
+            host_exit_stream_ok("R-01 exit OK 2");
             host_send("AT\r\n");
             (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK, host_settle_ms());
             host_check(strcmp(rsp, HOST_RSP_OK) == 0, "R-01 recover");

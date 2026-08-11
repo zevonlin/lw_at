@@ -7,8 +7,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-30
- * @version 1.0.0
+ * @date 2026-08-11
+ * @version 1.1.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -16,7 +16,8 @@
  * @see https://github.com/zevonlin
  *
  * Change Logs:
- * Date       Author    Notes    version
+ * Date       Author    Notes                              version
+ * 2026-08-11 linzhiwei 新增 host_collect_impaired 上行损伤 v1.1.0
  * 2026-07-30 linzhiwei 首次发布 v1.0.0
  */
 #ifndef HOST_SLAVE_HOST_API_H
@@ -85,6 +86,20 @@ uint32_t host_collect(char *out, uint32_t out_cap, uint32_t wait_ms);
  * @return 字节数
  */
 uint32_t host_collect_settle(char *out, uint32_t out_cap);
+
+/**
+ * @brief 带损伤收集上行：模拟从机→主机的上行方向链路被干扰
+ *
+ * 读取上行字节流时，每隔 impair_every 字节丢弃 1 个，并将一个噪声字节
+ * （0x00）插入流中，近似 EMI 对上行方向的丢字节 + 插噪声双重影响。
+ * @param out          输出缓冲
+ * @param out_cap      容量
+ * @param wait_ms      等待时长
+ * @param impair_every 每 N 字节损伤一次；0 表示不损伤
+ * @return 写入 out 的字节数（含插入的噪声字节）
+ */
+uint32_t host_collect_impaired(char *out, uint32_t out_cap, uint32_t wait_ms,
+                               uint32_t impair_every);
 
 /**
  * @brief 统计子串次数

@@ -3,27 +3,15 @@
  * @brief LW-AT 核心：生命周期、模式管理、行解析分派与结果回包
  *
  * @details
- * 持有库静态单例 lw_at_t（对外 API 签名由需求文档钦定为单实例，
- * 单例仅存在于本文件；各子模块函数均以实例指针传参，可多实例复用）。
- * feed 只入缓存并重载单次定时器（数据模式可先经 +++ 守卫；确认退出时
- * 仅置 exit_req，不在 ISR 内切模式）；process 在串行上下文完成排空与
- * 模式切换。空闲与静默改为事件驱动：at_timer_expired 由 port.timer_arm
- * 注册为到期回调，仅置标志不做解析/write。
- *
- * 数据模式进入采用两阶段确认：handler 调 lw_at_data_enter 登记后返回
- * LW_AT_OK；库回 \r\nOK\r\n 但不切换模式；用户准备完毕后调用
- * lw_at_data_confirm 打印 >\r\n 并切入数据模式。未确认前库拒绝后续命令。
- *
- * process 在命令模式下按行取出、拆解 AT 命令并按 handler 结果码回包
- * （含 OK、RESULT_DONE）；数据模式支持流式与定长窗口。设置参数区按
- * 引号/转义约定原地拆槽。缓存满按约定回 ERROR 并丢弃整段缓存。
- * 内核不内置业务命令名。
+ * 库核心：生命周期、模式管理、行解析分派与结果回包。静态单例
+ * lw_at_t 仅存在于本文件；内核不内置业务命令名，命令由产品侧
+ * 注册的命令表提供。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -32,6 +20,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 新增运行期 API；修复 +++ 跨段误退出；空闲超时作废残留；精简 @details v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #include "lw_at_cmd_dict.h"
@@ -393,6 +382,9 @@ static void core_data_leave_marked(lw_at_t *at, uint8_t call_done)
         }
         /* 定长未收满即退出：统一回 ERROR */
         core_write_final(at, LW_AT_ERROR);
+    } else if (at->data_policy == (uint8_t)LW_AT_DATA_STREAM) {
+        /* 流式 +++ 退出：按 AT 指令集约定回 OK，通知主机已回命令模式 */
+        core_write_final(at, LW_AT_OK);
     }
 }
 
@@ -577,8 +569,13 @@ static void at_timer_expired(void *user)
         if (use_plus != 0U) {
             at->silent = 1U;
             if (at->transmit.plus_cnt == LW_AT_PLUS_SEQ_LEN) {
+                /* 已凑齐 +++：登记退出（既有逻辑） */
                 at->exit_mark = at->stream.head;
                 at->exit_req  = 1U;
+                at->transmit.plus_cnt = 0U;
+            } else if (at->transmit.plus_cnt != 0U) {
+                /* 未凑齐：静默超时，暂存 '+' 作废，禁止跨段累积成退出序列
+                 * （BUG-001：先发 + 隔长时间再发 ++ 不得触发退出） */
                 at->transmit.plus_cnt = 0U;
             }
         }
@@ -711,6 +708,18 @@ void lw_at_process(void)
         if (at->mode == (uint8_t)LW_AT_MODE_DATA) {
             break;
         }
+    }
+
+    /*
+     * 空闲超时作废残留：取不到完整 \r\n 行但缓存仍有残留（如仅收到
+     * \r 或 \n 的残缺帧）时，丢弃残留并回 ERROR，避免无限等待导致
+     * 后续数据错位拼接。空闲超时与 \r\n 均作为帧结束裁断（产品约定）。
+     * 仅在命令模式且 pending（空闲超时）已发生时执行。
+     */
+    if ((at->mode == (uint8_t)LW_AT_MODE_COMMAND) &&
+        (at->stream.head != at->stream.tail)) {
+        lw_at_stream_reset(&at->stream);
+        core_write_final(at, LW_AT_ERROR);
     }
 }
 
@@ -974,4 +983,32 @@ lw_at_err_t lw_at_transmit_enter(void)
     cfg.user = at->cfg.cbs.sink_user;
     cfg.guard_ms = at->cfg.guard_ms;
     return lw_at_data_enter(&cfg);
+}
+
+/**
+ * @brief 查询当前工作模式
+ */
+uint8_t lw_at_mode_get(void)
+{
+    return at_instance.mode;
+}
+
+/**
+ * @brief 查询默认 +++ 前后静默时长
+ */
+uint32_t lw_at_guard_get(void)
+{
+    return at_instance.cfg.guard_ms;
+}
+
+/**
+ * @brief 设置默认 +++ 前后静默时长
+ */
+lw_at_err_t lw_at_guard_set(uint32_t ms)
+{
+    if (at_instance.inited == 0U) {
+        return LW_AT_ERR_STATE;
+    }
+    at_instance.cfg.guard_ms = ms;
+    return LW_AT_ERR_OK;
 }

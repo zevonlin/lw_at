@@ -3,15 +3,15 @@
  * @brief LW-AT Windows 例程适配层实现（非库核心）
  *
  * @details
- * write 经 fwrite 打到 stdout；timer_arm 使用 Windows 线程池定时器
- * CreateTimerQueueTimer，到期后由线程池回调直接触发 cb，无需主循环
- * 轮询。模拟 MCU 上 UART 发送 + 单次硬件定时器的最小形态。
+ * write 经 fwrite 打到 stdout；定时器用 Windows 线程池
+ * （CreateTimerQueueTimer）实现单次软件定时器，模拟 MCU 上
+ * UART 发送 + 单次硬件定时器的最小形态。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -20,6 +20,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                              version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖 v0.9.1
  * 2026-08-06 linzhiwei 首次发布                            v0.9.0
  */
 #include "lw_at_port_win.h"

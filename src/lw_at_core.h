@@ -3,16 +3,14 @@
  * @brief LW-AT 核心模块内部头：工作模式与库实例组合结构体
  *
  * @details
- * 定义库实例 lw_at_t：以组合方式聚合配置、接收流状态与数据模式状态，
- * 外加核心自身的解析状态。数据模式恒编译，不设裁剪开关。空闲与静默
- * 改为事件驱动后不再持有时间相关成员，silent 标志由定时器回调置位。
+ * 定义库实例结构体 lw_at_t：聚合配置、接收流与数据模式状态。
  * 实例本体为 lw_at_core.c 内的静态单例。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -21,6 +19,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #ifndef LW_AT_CORE_H

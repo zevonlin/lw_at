@@ -9,8 +9,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-30
- * @version 1.1.0
+ * @date 2026-08-11
+ * @version 1.5.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -19,6 +19,9 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 新增 A23 乱码半行空闲超时作废场景            v1.5.0
+ * 2026-08-11 linzhiwei 新增 A22 +++ 跨段静默回归场景                v1.4.0
+ * 2026-08-11 linzhiwei A13 退出回包；A03/A11/A16/A19 半行作废断言   v1.3.0
  * 2026-07-30 linzhiwei 增补丢字节/粘包半行/干扰/主机连发压力场景   v1.1.0
  * 2026-07-30 linzhiwei 首次发布                                    v1.0.0
  */
@@ -152,7 +155,7 @@ static const h_step_t script_a02_idle_gate[] = {
     { H_END, 0, NULL },
 };
 
-/* A03：process 前又来中断半包 — 先处理上一完整行，半包留下 */
+/* A03：process 前又来中断半包 — 先处理上一完整行，半包超时作废 */
 static const h_step_t script_a03_irq_before_process[] = {
     { H_INFO, 0, "A03 完整行后、process 前 IRQ 再塞半包" },
     { H_OUT_CLEAR, 0, NULL },
@@ -160,12 +163,12 @@ static const h_step_t script_a03_irq_before_process[] = {
     { H_TICK, AS_IDLE_MS, NULL },
     { H_FEED, 0, "AT+ECHO=" },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, AS_RSP_OK },
+    { H_EXPECT_OUT, 0, AS_RSP_OK AS_RSP_ERR },
     { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "9\r\n" },
     { H_TICK, AS_IDLE_MS, NULL },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, AS_RSP_OK },
+    { H_EXPECT_OUT, 0, AS_RSP_ERR },
     { H_END, 0, NULL },
 };
 
@@ -281,18 +284,19 @@ static const h_step_t script_a10_overflow[] = {
     { H_END, 0, NULL },
 };
 
-/* A11：半行久悬后补全（模拟用户停顿） */
+/* A11：半行停顿超时作废回 ERROR（模拟用户停顿） */
 static const h_step_t script_a11_user_pause[] = {
-    { H_INFO, 0, "A11 用户输入停顿：半行挂起再补全" },
+    { H_INFO, 0, "A11 用户停顿：半行空闲超时作废回 ERROR" },
     { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "AT+ECH" },
     { H_TICK, AS_IDLE_MS, NULL },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, "" },
+    { H_EXPECT_OUT, 0, AS_RSP_ERR },
+    { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "O=7\r\n" },
     { H_TICK, AS_IDLE_MS, NULL },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, AS_RSP_OK },
+    { H_EXPECT_OUT, 0, AS_RSP_ERR },
     { H_END, 0, NULL },
 };
 
@@ -328,6 +332,15 @@ static int as_expect_sink_d_plus(void)
     return (strcmp(sink_buf, "d+++") == 0) ? 1 : 0;
 }
 
+/**
+ * @brief A22：跨段静默作废后 sink 应为空（暂存 '+' 未透传）
+ * @return 非 0 匹配
+ */
+static int as_expect_sink_empty(void)
+{
+    return (sink_buf[0] == '\0') ? 1 : 0;
+}
+
 /* A13：透传进入后分片数据，再合法 +++ 退出 */
 static const h_step_t script_a13_transmit_async[] = {
     { H_INFO, 0, "A13 透传：CIPMODE+CIPSEND 分片下行 + 守卫退出" },
@@ -351,8 +364,10 @@ static const h_step_t script_a13_transmit_async[] = {
     { H_FEED, 0, "+++" },
     { H_TICK, AS_GUARD_MS, NULL },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, "" },
+    { H_EXPECT_OUT, 0, AS_RSP_OK },
     { H_EXPECT_FN, 0, as_expect_sink_hello },
+    /* 清掉退出 OK，避免与后续命令应答粘连 */
+    { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "AT\r\n" },
     { H_TICK, AS_IDLE_MS, NULL },
     { H_PROCESS, 0, NULL },
@@ -394,15 +409,6 @@ static const h_step_t script_a14_transmit_false_plus[] = {
     { H_END, 0, NULL },
 };
 
-/**
- * @brief A16：半行补全后 ECHO 值应为 8
- * @return 非 0 匹配
- */
-static int as_expect_echo_8(void)
-{
-    return (test_cmd_echo_get() == 8) ? 1 : 0;
-}
-
 /* A15：RX 中途丢字节（故意不喂 'H'）→ 命令名错乱 ERROR，再恢复 */
 static const h_step_t script_a15_drop_byte[] = {
     { H_INFO, 0, "A15 丢字节：AT+EC + O=5（缺 H）→ ERROR，再 AT OK" },
@@ -422,20 +428,19 @@ static const h_step_t script_a15_drop_byte[] = {
     { H_END, 0, NULL },
 };
 
-/* A16：粘包 = 完整行 + 半行；先处理完整行，半行等后续分片 */
+/* A16：粘包 = 完整行 + 半行；先处理完整行，半行空闲超时作废 */
 static const h_step_t script_a16_sticky_half[] = {
     { H_INFO, 0, "A16 粘包半行：AT\\r\\nAT+ECHO= 一次到达" },
     { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "AT\r\nAT+ECHO=" },
     { H_TICK, AS_IDLE_MS, NULL },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, AS_RSP_OK },
+    { H_EXPECT_OUT, 0, AS_RSP_OK AS_RSP_ERR },
     { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "8\r\n" },
     { H_TICK, AS_IDLE_MS, NULL },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, AS_RSP_OK },
-    { H_EXPECT_FN, 0, as_expect_echo_8 },
+    { H_EXPECT_OUT, 0, AS_RSP_ERR },
     { H_END, 0, NULL },
 };
 
@@ -476,20 +481,21 @@ static const h_step_t script_a18_noise_between[] = {
 };
 
 /*
- * A19：丢 LF（只有 CR）——行不闭合；随后新命令拼进同一逻辑行 → ERROR，再恢复。
- * 模拟：UART 丢了 \\n，下一帧的 AT\\r\\n 与残留拼成 AT\\rAT。
+ * A19：丢 LF（只有 CR）——行不闭合；空闲超时后残留 CR 作废回 ERROR，
+ * 新命令不再粘连，直接恢复。
  */
 static const h_step_t script_a19_lost_lf[] = {
-    { H_INFO, 0, "A19 丢 LF：残留 CR 与下一帧粘成脏行" },
+    { H_INFO, 0, "A19 丢 LF：残留 CR 空闲超时作废；新命令恢复" },
     { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "AT\r" },
     { H_TICK, AS_IDLE_MS, NULL },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, "" },
+    { H_EXPECT_OUT, 0, AS_RSP_ERR },
+    { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "AT\r\n" },
     { H_TICK, AS_IDLE_MS, NULL },
     { H_PROCESS, 0, NULL },
-    { H_EXPECT_OUT, 0, AS_RSP_ERR },
+    { H_EXPECT_OUT, 0, AS_RSP_OK },
     { H_OUT_CLEAR, 0, NULL },
     { H_FEED, 0, "AT\r\n" },
     { H_TICK, AS_IDLE_MS, NULL },
@@ -539,6 +545,67 @@ static const h_step_t script_a21_irq_stress[] = {
     { H_END, 0, NULL },
 };
 
+/*
+ * A22：+++ 跨段静默（BUG-001 回归）。
+ * `+` → guard 超时 → `++` → guard 超时，不得拼成 `+++` 误退出；
+ * 确认仍在数据模式后，用合法 +++（连续 + 前静默 + 后静默）正常退出。
+ */
+static const h_step_t script_a22_plus_cross_segment[] = {
+    { H_INFO, 0, "A22 +++ 跨段静默：超时作废不误退出，再合法退出" },
+    { H_OUT_CLEAR, 0, NULL },
+    { H_FEED, 0, "AT+CIPMODE=1\r\n" },
+    { H_TICK, AS_IDLE_MS, NULL },
+    { H_PROCESS, 0, NULL },
+    { H_EXPECT_OUT, 0, AS_RSP_OK },
+    { H_OUT_CLEAR, 0, NULL },
+    { H_FEED, 0, "AT+CIPSEND\r\n" },
+    { H_TICK, AS_IDLE_MS, NULL },
+    { H_PROCESS, 0, NULL },
+    { H_EXPECT_OUT, 0, AS_RSP_OK_PROMPT },
+    { H_OUT_CLEAR, 0, NULL },
+    /* 前静默：进入后 guard 到期置 silent */
+    { H_TICK, AS_GUARD_MS, NULL },
+    { H_FEED, 0, "+" },
+    /* 跨静默：guard 超时，暂存 '+' 应作废（BUG-001 修复） */
+    { H_TICK, AS_GUARD_MS, NULL },
+    { H_FEED, 0, "++" },
+    { H_TICK, AS_GUARD_MS, NULL },
+    { H_PROCESS, 0, NULL },
+    { H_EXPECT_OUT, 0, "" },
+    { H_EXPECT_FN, 0, as_expect_sink_empty },
+    /* 仍在数据模式：合法 +++（前静默 + 连续 +++ + 后静默）应能退出 */
+    { H_TICK, AS_GUARD_MS, NULL },
+    { H_FEED, 0, "+++" },
+    { H_TICK, AS_GUARD_MS, NULL },
+    { H_PROCESS, 0, NULL },
+    { H_EXPECT_OUT, 0, AS_RSP_OK },
+    { H_OUT_CLEAR, 0, NULL },
+    { H_FEED, 0, "AT\r\n" },
+    { H_TICK, AS_IDLE_MS, NULL },
+    { H_PROCESS, 0, NULL },
+    { H_EXPECT_OUT, 0, AS_RSP_OK },
+    { H_END, 0, NULL },
+};
+
+/*
+ * A23：无 \r\n 的乱码半行空闲超时作废（BUG-003/优化功能回归）。
+ * 乱码半行超时后回 ERROR 并作废；后续标准命令不与残留粘连，直接 OK。
+ */
+static const h_step_t script_a23_noise_half[] = {
+    { H_INFO, 0, "A23 乱码半行空闲超时作废；新命令不粘连" },
+    { H_OUT_CLEAR, 0, NULL },
+    { H_FEED, 0, "\x01\x7F\x00\xF0\xE2\x83\x2A\x9C" },
+    { H_TICK, AS_IDLE_MS, NULL },
+    { H_PROCESS, 0, NULL },
+    { H_EXPECT_OUT, 0, AS_RSP_ERR },
+    { H_OUT_CLEAR, 0, NULL },
+    { H_FEED, 0, "AT\r\n" },
+    { H_TICK, AS_IDLE_MS, NULL },
+    { H_PROCESS, 0, NULL },
+    { H_EXPECT_OUT, 0, AS_RSP_OK },
+    { H_END, 0, NULL },
+};
+
 int main(void)
 {
     int failed_scenes = 0;
@@ -584,6 +651,10 @@ int main(void)
     failed_scenes += harness_run("A20 pipeline", as_setup_cmd, script_a20_pipeline);
     failed_scenes += harness_run("A21 irq stress", as_setup_cmd,
                                  script_a21_irq_stress);
+    failed_scenes += harness_run("A22 plus cross segment", as_setup_cmd,
+                                 script_a22_plus_cross_segment);
+    failed_scenes += harness_run("A23 noise half line", as_setup_cmd,
+                                 script_a23_noise_half);
 
     (void)printf("\n==== 汇总 ====\n");
     (void)printf("checks: %u, failed: %u, scenes_failed: %d\n",

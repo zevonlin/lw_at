@@ -3,21 +3,15 @@
  * @brief LW-AT 移植层：编译配置、C 库符号映射与定时器回调类型
  *
  * @details
- * 集中放置可由产品侧覆盖的配置宏（如 LW_AT_ARG_MAX），以及标准 C 库
- * 函数的小写下划线别名（如 lw_at_memset）。默认映射到宿主 C 库；嵌入式
- * 环境可在包含本头文件之前自行 #define 以替换实现。
- * 数据模式（流式透传与定长收数）恒编译，不设裁剪开关；流式路径在
- * 未注册 sink 时运行时校验失败。
- * 本文件亦定义 lw_at_timer_cb_t（单次软件定时器到期回调），供板级
- * timer_arm/timer_stop 注册使用。板级 write 与定时器操作定义于
- * lw_at_port_ops_t（见 lw_at.h）；例程见 examples/port，测试见
- * tests/fixtures/test_port。
+ * 移植层：放置产品可覆盖的配置宏、标准 C 库符号别名映射与单次
+ * 软件定时器到期回调类型 lw_at_timer_cb_t。默认映射宿主 C 库；
+ * 嵌入式环境可在包含本文件前自行 #define 覆盖。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -26,6 +20,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #ifndef LW_AT_PORT_H

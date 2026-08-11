@@ -11,8 +11,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-01
- * @version 1.6.0
+ * @date 2026-08-11
+ * @version 1.7.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -21,6 +21,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 流式退出断言改为期望自动回 OK                 v1.7.0
  * 2026-08-01 linzhiwei 移除 LW_AT_CFG_TRANSMIT 条件编译             v1.6.0
  * 2026-08-01 linzhiwei 事件驱动适配：虚拟定时器；退出由 process 完成 v1.5.0
  * 2026-07-30 linzhiwei Port/命令改挂 tests/fixtures               v1.4.0
@@ -508,13 +509,13 @@ static void test_case_transmit_basic(void)
     TEST_CHECK(strcmp(sink_buf, "helloAT\r\n") == 0);
 
     test_port_out_clear();
-    test_info("静默 + +++ + 静默，经定时器回调 + process 退出，默认不回 OK");
+    test_info("静默 + +++ + 静默，经定时器回调 + process 退出，默认自动回 OK");
     test_port_tick_advance(TEST_GUARD_MS);
     (void)test_feed("+++");
     test_port_tick_advance(TEST_GUARD_MS);
     lw_at_process();
     (void)printf("<< \"%s\"\n", test_esc(test_port_out_get()));
-    TEST_CHECK(test_port_out_get()[0] == '\0');
+    TEST_CHECK(strcmp(test_port_out_get(), TEST_RSP_OK) == 0);
     TEST_CHECK(strcmp(sink_buf, "helloAT\r\n") == 0);
     TEST_RESP("AT\r\n", TEST_RSP_OK);
 

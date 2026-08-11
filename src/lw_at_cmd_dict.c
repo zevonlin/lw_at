@@ -3,15 +3,14 @@
  * @brief LW-AT 命令字典实现：哨兵头结点链表注册与查找
  *
  * @details
- * 模块内静态哨兵头结点 dict_head，已注册表挂在 dict_head.next 之后。
- * 注册时做表内重名、跨表重名与重复挂链检查；查找沿链表顺序线性扫描。
- * 不使用动态内存，节点存储由调用方提供。
+ * 命令字典实现：静态哨兵链表注册与按名查找；注册时做表内/跨表
+ * 重名与重复挂链检查。不使用动态内存，节点由调用方静态提供。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -20,6 +19,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 精简头注释 @details 至职责/约束/依赖          v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #include "lw_at_cmd_dict.h"

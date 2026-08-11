@@ -8,8 +8,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-30
- * @version 2.0.0
+ * @date 2026-08-11
+ * @version 2.1.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -18,6 +18,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                              version
+ * 2026-08-11 linzhiwei 注册 U 组上行损伤场景               v2.1.0
  * 2026-07-30 linzhiwei 全场景矩阵 + hs_cmd + 损伤层         v2.0.0
  * 2026-07-30 linzhiwei 首次发布                            v1.0.0
  */
@@ -65,6 +66,7 @@ int main(void)
     failed_scenes += scenes_run_buffer();
     failed_scenes += scenes_run_stress();
     failed_scenes += scenes_run_transmit();
+    failed_scenes += scenes_run_upstream();
 
     slave_rt_stop();
     link_q_deinit(&g_q_down);

@@ -7,8 +7,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-31
- * @version 1.1.0
+ * @date 2026-08-11
+ * @version 1.2.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -17,6 +17,7 @@
  *
  * Change Logs:
  * Date       Author    Notes    version
+ * 2026-08-11 linzhiwei 退出后消费 OK 回包再发命令 v1.2.0
  * 2026-07-31 linzhiwei 进入改为 CIPMODE+CIPSEND v1.1.0
  * 2026-07-30 linzhiwei 首次发布 v1.0.0
  */
@@ -86,6 +87,8 @@ int scenes_run_transmit(void)
     Sleep(80);
     host_check(strcmp(slave_rt_sink_get(), "hello") == 0, "T-01 sink hello");
     host_exit_transmit();
+    (void)host_collect_settle(rsp, sizeof(rsp));
+    host_check(strcmp(rsp, HOST_RSP_OK) == 0, "T-01 exit OK");
     Sleep(80);
     host_send("AT\r\n");
     (void)host_collect_settle(rsp, sizeof(rsp));
@@ -104,6 +107,8 @@ int scenes_run_transmit(void)
     Sleep(80);
     host_check(strcmp(slave_rt_sink_get(), "d+++") == 0, "T-02 false +++");
     host_exit_transmit();
+    (void)host_collect_settle(rsp, sizeof(rsp));
+    host_check(strcmp(rsp, HOST_RSP_OK) == 0, "T-02 exit OK");
     Sleep(80);
     host_send("AT\r\n");
     (void)host_collect_settle(rsp, sizeof(rsp));
@@ -125,6 +130,8 @@ int scenes_run_transmit(void)
     Sleep(100);
     host_check(slave_rt_sink_len() == 100U, "T-03 sink 100");
     host_exit_transmit();
+    (void)host_collect_settle(rsp, sizeof(rsp));
+    host_check(strcmp(rsp, HOST_RSP_OK) == 0, "T-03 exit OK");
     Sleep(80);
     host_send("AT\r\n");
     (void)host_collect_settle(rsp, sizeof(rsp));
@@ -140,6 +147,8 @@ int scenes_run_transmit(void)
     Sleep(80);
     host_check(strcmp(slave_rt_sink_get(), "AT\r\n") == 0, "T-04 AT as data");
     host_exit_transmit();
+    (void)host_collect_settle(rsp, sizeof(rsp));
+    host_check(strcmp(rsp, HOST_RSP_OK) == 0, "T-04 exit OK");
     Sleep(80);
     host_send("AT\r\n");
     (void)host_collect_settle(rsp, sizeof(rsp));

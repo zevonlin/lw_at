@@ -3,34 +3,16 @@
  * @brief LW-AT AT 指令解析库对外 API
  *
  * @details
- * 裸机环境 AT 从机解析库的唯一对外头文件。提供初始化/反初始化、
- * 字节入口 lw_at_feed（允许在 ISR 中调用）、串行上下文处理入口
- * lw_at_process、setup 参数读取、中间信息发送、数据模式进入
- * （可选：流式透传 / 定长窗口），以及命令表链表注册接口。
- *
- * 空闲与透传静默改为事件驱动：板级通过 port.timer_arm 注册单次
- * 软件定时器，lw_at_feed 在每次喂数后重载定时器；定时器到期回调
- * 内库仅置标志（pending / silent），不做解析或 write。用户须在
- * 串行上下文中调用 lw_at_process 消费。
- *
- * 数据模式进入采用两阶段确认：handler 内调 lw_at_data_enter 登记意图
- * 后返回 LW_AT_OK；用户完成内部准备后调 lw_at_data_confirm 打印 >\r\n
- * 并切入数据模式。亦可调 lw_at_data_cancel 取消登记。不可自动切入。
- *
- * 约束：单实例；不具备线程安全；全部缓冲区由调用方静态提供，
- * 库内不使用动态内存；命令表由用户静态节点经 lw_at_cmd_register
- * 多次挂链注册；板级依赖经 lw_at_port_ops_t，应用回调经
- * lw_at_user_cbs_t。数据模式（流式透传与定长收数）恒编译，不设
- * 裁剪开关；流式路径在未注册 sink 时运行时校验失败。内核不内置
- * 任何业务命令名。设置命令按引号/转义约定拆槽，经
- * lw_at_get_para_str/digit 或 lw_at_arg_get 取参。
- * C 库依赖经 lw_at_port.h 中的 lw_at_* 宏映射，可按平台替换。
+ * LW-AT AT 从机解析库唯一对外头文件，应用层仅需包含本文件。
+ * 库为单实例、非线程安全，除 lw_at_feed 允许在 ISR 中调用外，
+ * 其余 API 均在串行上下文调用；缓冲区与命令表由调用方静态提供，
+ * 库内不分配内存。C 库符号经 lw_at_port.h 宏映射可替换。
  * @note Encoding for Chinese Comments :UTF8 (no BOM)
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-08-06
- * @version 0.9.0
+ * @date 2026-08-11
+ * @version 0.9.1
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -39,6 +21,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                                      version
+ * 2026-08-11 linzhiwei 新增运行期 API；空闲超时作废残留；精简 @details v0.9.1
  * 2026-08-06 linzhiwei 首次发布                                    v0.9.0
  */
 #ifndef LW_AT_H
@@ -260,7 +243,9 @@ int32_t lw_at_feed(const uint8_t *data, uint32_t len);
  * @brief 处理接收缓存中的数据
  *
  * 命令模式下按 \r\n 拆行并分发（「待处理」标志未置起时立即返回）；
- * 数据模式下把缓存数据交给 on_chunk（定长收满后回命令模式）。
+ * 空闲超时后若缓存仍有未闭合残留（无完整 \r\n 行），作废该残留并回
+ * \r\nERROR\r\n（空闲超时亦作为帧结束裁断）。数据模式下把缓存数据交给
+ * on_chunk（定长收满后回命令模式）。
  * 须在非收包 ISR 的串行上下文中调用（如主循环、或已确认安全的软件
  * 定时器任务）。
  */
@@ -367,6 +352,30 @@ lw_at_err_t lw_at_data_exit(void);
  *         或 sink 未注册
  */
 lw_at_err_t lw_at_transmit_enter(void);
+
+/**
+ * @brief 查询当前工作模式
+ *
+ * 供应用层在收到业务事件时判断透传/命令分派（如 BLE 写分派）。
+ * @return LW_AT_MODE_COMMAND(0) 命令模式；LW_AT_MODE_DATA(1) 数据模式
+ */
+uint8_t lw_at_mode_get(void);
+
+/**
+ * @brief 查询默认 +++ 前后静默时长（guard_ms）
+ * @return 静默时长（ms）；0 表示关闭守卫
+ */
+uint32_t lw_at_guard_get(void);
+
+/**
+ * @brief 设置默认 +++ 前后静默时长（guard_ms）
+ *
+ * 修改 lw_at_config_t::guard_ms 默认值，供此后进入的数据模式会话使用；
+ * 单次会话仍可用 lw_at_data_enter_cfg_t::guard_ms 覆盖。
+ * @param ms 静默时长（ms）；0 表示关闭守卫（不推荐）
+ * @return LW_AT_ERR_OK 成功；LW_AT_ERR_STATE 未初始化
+ */
+lw_at_err_t lw_at_guard_set(uint32_t ms);
 
 #ifdef __cplusplus
 }

@@ -8,8 +8,8 @@
  *
  * @author linzhiwei(zevonlin)
  * @email zevonlin@gmail.com
- * @date 2026-07-31
- * @version 1.2.0
+ * @date 2026-08-11
+ * @version 1.3.0
  *
  * @copyright Copyright (c) 2026 linzhiwei(zevonlin)
  * @license SPDX-License-Identifier: Apache-2.0
@@ -18,6 +18,7 @@
  *
  * Change Logs:
  * Date       Author    Notes                              version
+ * 2026-08-11 linzhiwei 新增 host_exit_stream_ok 消费退出回包 v1.3.0
  * 2026-07-31 linzhiwei 中文双端日志与控制台 UTF-8         v1.2.0
  * 2026-07-31 linzhiwei 精确等待/安静窗/子串计数           v1.1.0
  * 2026-07-31 linzhiwei 首次发布                            v1.0.0
@@ -350,6 +351,15 @@ void host_exit_stream_plus(void)
     Sleep(g + 40U);
     host_send("+++");
     Sleep(g + 40U);
+}
+
+void host_exit_stream_ok(const char *tag)
+{
+    char rsp[HOST_COLLECT_CAP];
+
+    host_exit_stream_plus();
+    (void)host_wait_exact(rsp, sizeof(rsp), HOST_RSP_OK, host_settle_ms() + 100U);
+    host_check(strcmp(rsp, HOST_RSP_OK) == 0, tag);
 }
 
 int host_enter_stream(const char *tag)
